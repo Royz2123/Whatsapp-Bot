@@ -56,7 +56,6 @@ class WhatsappClient():
         time.sleep(1)
         input_box.send_keys(message + Keys.ENTER)
         time.sleep(1)
-        self._driver.quit()
 
     def get_contact_image(self):
         self.open_contact()
