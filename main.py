@@ -5,7 +5,7 @@ import time
 
 def main():
     whats_client = whatsapp_api.WhatsappClient()
-    print("Sending message")
+    print("Sending message now")
     whats_client.get_contact_time()
     whats_client.close_conn()
 
