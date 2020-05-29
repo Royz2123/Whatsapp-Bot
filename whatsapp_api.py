@@ -21,7 +21,7 @@ class WhatsappClient():
     # TEST_CONTACT = "אסף תלפיות"
     # TEST_CONTACT = "אסף היי ניסיון"
 
-    def __init__(self, minimize=False):
+    def __init__(self, minimize=False, prompt=False):
         options = webdriver.ChromeOptions()
 
         if not minimize:
@@ -34,12 +34,15 @@ class WhatsappClient():
 
         if minimize:
             self._driver.minimize_window()
-            self._driver.get("https://web.whatsapp.com")
 
+        # get the whatsapp window
+        self._driver.get("https://web.whatsapp.com")
+
+        # wait until page loads?
+        if prompt:
             input("Scan QR Code, And then Enter")
             print("Logged in")
         else:
-            self._driver.get("https://web.whatsapp.com")
             time.sleep(20)
 
         DB_API.init_db(DB_API.TEST_NAMES, DB_API.TEST_HOURS)
