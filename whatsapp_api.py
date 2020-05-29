@@ -48,9 +48,13 @@ class WhatsappClient():
         self._driver.quit()
 
     def scan_users(self, user_lst=DB_API.TEST_NAMES):
-        for contact_name in user_lst:
-            self.get_contact_time(contact_name)
-            DB_API.set_image(contact_name, self.get_contact_image(contact_name))
+        try:
+            for contact_name in user_lst:
+                self.get_contact_time(contact_name)
+                DB_API.set_image(contact_name, self.get_contact_image(contact_name))
+        except Exception as e:
+            print(f"Scan failed, Error: {e}")
+
 
     def open_contact(self, contact=TEST_CONTACT):
         contact_names = contact.split(" ")
