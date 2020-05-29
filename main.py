@@ -5,8 +5,12 @@ import time
 
 def main():
     whats_client = whatsapp_api.WhatsappClient()
-    print("Sending message now")
-    whats_client.get_contact_time()
+
+    while True:
+        print("Starting contacts scan")
+        whats_client.scan_users()
+        time.sleep(10)
+
     whats_client.close_conn()
 
 
