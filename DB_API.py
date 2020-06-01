@@ -1,21 +1,47 @@
 from utilities import *
-from matplotlib import pyplot as plt
-import pickle
-import time
+import csv
+import os
+from functools import reduce
 
 ################ API Constants ################
 
-PKL_FILE = "Database.pkl"
+PKL_FILE = "Database2.pkl"
 
 ONLINE = "Online"
 ACTIVE_HOURS = "Active Hours"
 IMAGE = "User Image"
 LAST_SEEN = "Last Seen"
 STILL_ONLINE = "Still Online"
+INDEX = "Index"
 
 SLEEP_THRESHOLD = 5
 SLEEP_START_FORMAT = "22:00,{}-{}-{}"
 SLEEP_END_FORMAT = "10:00,{}-{}-{}"
+
+CURRENT_PATH = os.getcwd()
+ACTIVITY_PATH = "activity_hours.csv"
+CONTACTS_PATH = "contacts.csv"
+
+WAIT = 2
+REPEAT = 3
+
+TODAY_LAST = "today"
+YESTERDAT_LAST = "yesterday"
+MONTHS_LAST = {
+    "Jan": "01",
+    "Feb": "02",
+    "Mar": "03",
+    "April": "04",
+    "May": "05",
+    "Jun": "06",
+    "Jul": "07",
+    "Aug": "08",
+    "Sep": "09",
+    "Oct": "10",
+    "Nov": "11",
+    "Dec": "12",
+
+}
 
 
 ############### Whatsapp DB API ###############
@@ -39,6 +65,7 @@ def init_db(names, active_hours):
         db[contact][LAST_SEEN] = ""
         db[contact][ACTIVE_HOURS] = active_hours[i]
         db[contact][IMAGE] = ""
+        db[contact][INDEX] = i
 
     write_pkl(db, PKL_FILE)
 
@@ -63,11 +90,10 @@ def online_now(contact_name):
         # If the Contact isn't Online in the DB
         if not db[contact_name][ONLINE]:
             # Update Hours
-            if current_date_time_str != db[contact_name][ACTIVE_HOURS][-1][-1]:
+            if not db[contact_name][ACTIVE_HOURS] or current_date_time_str != \
+                    db[contact_name][ACTIVE_HOURS][-1][-1]:
                 db[contact_name][ACTIVE_HOURS].append(
                     [current_date_time_str, STILL_ONLINE])
-            else:
-                db[contact_name][ACTIVE_HOURS][-1][-1] = STILL_ONLINE
 
             while abs(distance_in_hourdates(current_date_time_str, db[contact_name][
                 ACTIVE_HOURS][0][-1])) > abs(distance_in_hourdates("00:00,1-1-0", "00:00,15-1-0")):
@@ -101,7 +127,7 @@ def not_online_now(contact_name):
         # If the Contact is Online in the DB
         if db[contact_name][ONLINE]:
             # Update Hours
-            db[contact_name][ACTIVE_HOURS][-1][1] = current_date_time_str
+            db[contact_name][ACTIVE_HOURS][-1][-1] = current_date_time_str
 
             # Update Online Status
             db[contact_name][ONLINE] = False
@@ -146,8 +172,24 @@ def lastseen_update(contact_name, last_seen):
     db = read_pkl(PKL_FILE)
 
     if db:
+        current_date = get_current_date_time()
+        year = current_date.split("-")[-1]
+
+        last_seen_date = last_seen.split(" ")[:-1]
+        last_seen_hours = last_seen.split(" ")[-1]
+
+        if last_seen_date[0] == TODAY_LAST:
+            last_seen_update = last_seen_hours + "," + current_date.split(",")[-1]
+        elif last_seen_date[0] == YESTERDAT_LAST:
+            yesterday = get_yesterday(current_date)
+            last_seen_update = last_seen_hours + "," + yesterday.split(",")[-1]
+        else:
+            month, day = last_seen_date[:-1].split(" ")
+            month = MONTHS_LAST[month]
+            last_seen_update = last_seen_hours + "," + day + "-" + month + "-" + year
+
         # Update Last Seen
-        db[contact_name][LAST_SEEN] = last_seen
+        db[contact_name][LAST_SEEN] = last_seen_update
 
     write_pkl(db, PKL_FILE)
 
@@ -181,11 +223,29 @@ def lastseen(contact_name):
     db = read_pkl(PKL_FILE)
 
     if db:
-        return db[contact_name][LAST_SEEN]
+        return db[contact_name][LAST_SEEN].split(",")[::-1]
 
 
 def get_blocking(contact_name):
-    pass
+    activity_hours = get_total_activity_hours(contact_name)
+
+    if not activity_hours:
+        return True
+
+    if activity_hours[-1][-1] == STILL_ONLINE:
+        return False
+
+    dists = []
+    for i in range(len(activity_hours) - 1):
+        dists.append(abs(distance_in_hourdates(activity_hours[i + 1][0], activity_hours[i][-1])))
+
+    max_wait = max(dists)
+
+    if abs(distance_in_hourdates(get_current_date_time(),
+                                 activity_hours[-1][-1])) > WAIT * max_wait:
+        return True
+
+    return False
 
 
 # Function get_total_activity_hours:
@@ -278,9 +338,12 @@ def get_contact_by_activity_hours(activity_hours):
         filtered = {}
         for contact in db:
             act_hours = get_total_activity_hours(contact)
+
             if act_hours:
                 if act_hours[-1][-1] == STILL_ONLINE:
                     act_hours[-1][-1] = get_current_date_time()
+
+                act_hours = separate_act_hours_by_dates(act_hours)
 
                 ranges = []
 
@@ -291,9 +354,13 @@ def get_contact_by_activity_hours(activity_hours):
                         if mutual_beginning == min_hour_date(mutual_beginning, mutual_end):
                             ranges.append([mutual_beginning, mutual_end])
 
+
                 if ranges:
                     filtered[contact] = ranges
-
+                else:
+                    filtered[contact] = []
+            else:
+                filtered[contact] = []
         return filtered
 
 
@@ -351,53 +418,295 @@ def get_sleeping_hours(contact, start_date, end_date):
     return sleeping_hours
 
 
+def get_end_together(contact1, contact2, epsilon):
+    active_hours1 = get_total_activity_hours(contact1)
+    active_hours2 = get_total_activity_hours(contact2)
+
+    end_together = []
+
+    for i, date1 in enumerate(active_hours1):
+        for j, date2 in enumerate(active_hours2):
+            if abs(distance_in_hourdates(date1[-1], date2[-1])) < epsilon / 60:
+                end_together.append((date1, date2))
+
+    return end_together
+
+
+def get_start_together(contact1, contact2, epsilon):
+    active_hours1 = get_total_activity_hours(contact1)
+    active_hours2 = get_total_activity_hours(contact2)
+
+    start_together = []
+
+    for i, date1 in enumerate(active_hours1):
+        for j, date2 in enumerate(active_hours2):
+            if abs(distance_in_hourdates(date1[0], date2[0])) < epsilon / 60:
+                start_together.append((date1, date2))
+
+    return start_together
+
+
+def get_contact_start_together(epsilon):
+    db = read_pkl(PKL_FILE)
+
+    if db:
+        start_together = {}
+        for contact1 in db:
+            for contact2 in db:
+                if contact1 == contact2:
+                    continue
+
+                start = get_start_together(contact1, contact2, epsilon)
+
+                if start and start[0] is not None:
+                    if (contact1, contact2) not in start_together and (contact2, contact1) not in \
+                            start_together:
+                        start_together[(contact1, contact2)] = start
+
+        return start_together
+
+
+def get_contact_end_together(epsilon):
+    db = read_pkl(PKL_FILE)
+
+    if db:
+        end_together = {}
+        for contact1 in db:
+            for contact2 in db:
+                if contact1 == contact2:
+                    continue
+
+                end = get_end_together(contact1, contact2, epsilon)
+
+                if end and end[0] is not None:
+                    if (contact1, contact2) not in end_together and (
+                            contact2, contact1) not in end_together:
+                        end_together[(contact1, contact2)] = end
+
+        return end_together
+
+
+def get_total_activity(active_hours):
+    return sum([abs(distance_in_hourdates(hour[0], hour[1])) for hour in active_hours])
+
+
+def get_total_active_time_on_day(contact_name, date):
+    active_hours = get_total_activity_hours(contact_name)
+
+    separated_hours = separate_act_hours_by_dates(active_hours)
+
+    filtered_hours = [hour for hour in separated_hours if date in hour[0] or date in hour[1]]
+
+    return get_total_activity(filtered_hours) / 24
+
+
+def get_mutual_intersection(contact1, contact2, date):
+    active_hours2 = get_total_activity_hours(contact2)
+
+    separated_hours2 = separate_act_hours_by_dates(active_hours2)
+    filtered_hours2 = [hour for hour in separated_hours2 if date in hour[0] or date in hour[1]]
+
+    intersection = get_contact_by_activity_hours(filtered_hours2)
+
+    print(separated_hours2, intersection)
+
+    if contact1 in intersection:
+        return intersection[contact1]
+
+    return []
+
+
+def get_mutual_intersection_on_day(contact1, contact2, date):
+    active_hours1 = get_total_activity_hours(contact1)
+    active_hours2 = get_total_activity_hours(contact2)
+
+    active_hours1[-1] = list(fix_hourdates(*active_hours1[-1]))
+    active_hours2[-1] = list(fix_hourdates(*active_hours2[-1]))
+
+    separated_hours1 = separate_act_hours_by_dates(active_hours1)
+    filtered_hours1 = [hour for hour in separated_hours1 if date in hour[0] or date in hour[1]]
+
+    total_activity1 = get_total_activity(filtered_hours1)
+
+    separated_hours2 = separate_act_hours_by_dates(active_hours2)
+    filtered_hours2 = [hour for hour in separated_hours2 if date in hour[0] or date in hour[1]]
+
+    total_activity2 = get_total_activity(filtered_hours2)
+
+    intersection = get_mutual_intersection(contact1, contact2, date)
+
+    print(intersection)
+
+    total_activity_intersection = get_total_activity(intersection)
+
+    print(total_activity_intersection, total_activity1, total_activity2)
+
+    return total_activity_intersection / total_activity1, total_activity_intersection / total_activity2
+
+
+def get_repeating_times(contact_name, epsilon):
+    activity_hours = get_total_activity_hours(contact_name)
+    weekday_activity_hours = filter(lambda x: weekend(x[0]), activity_hours)
+
+    if not weekday_activity_hours:
+        return []
+
+    day_index = 0
+    for i, hour in enumerate(weekday_activity_hours):
+        if abs(distance_in_hourdates(hour[0], weekday_activity_hours[0][0])) < abs(
+                distance_in_hourdates("00:00,1-1-0", "00:00,2-1-0")):
+            day_index = i
+
+    first_day = weekday_activity_hours[:day_index + 1]
+
+    repeating_hours = []
+    for hour1 in first_day:
+        repeating = []
+        for hour2 in weekday_activity_hours:
+            if abs(distance_in_hourdates(hour2[0], hour1[0])) < epsilon / 60 and abs(
+                    distance_in_hourdates(hour2[1], hour1[1])) < epsilon / 60:
+                repeating.append(hour2)
+
+        if len(repeating) > REPEAT:
+            repeating_hours.append(hour1)
+
+    return repeating_hours
+
+
+def save_activity_hours(contact_name):
+    db = read_pkl(PKL_FILE)
+
+    if db:
+        activity_hours = get_total_activity_hours(contact_name)
+
+        with open(os.path.join(CURRENT_PATH, ACTIVITY_PATH), 'w', newline='') as f:
+            writer = csv.writer(f, delimiter=',')
+
+            writer.writerow(['Index', 'Start Time', 'End Time'])
+            for i, line in enumerate(activity_hours):
+                line = [i + 1] + line
+                if line[-1] == STILL_ONLINE:
+                    line[-1] = get_current_date_time()
+                writer.writerow(line)
+
+
+def get_contact_by_index(i):
+    db = read_pkl(PKL_FILE)
+
+    if db:
+        for contact in db:
+            if i == db[contact][INDEX]:
+                return contact
+
+    return None
+
+
+def save_contacts_by_activity_hours(activity_hours):
+    db = read_pkl(PKL_FILE)
+
+    if db:
+        filtered_contacts = get_contact_by_activity_hours(activity_hours)
+        first_row = [[db[contact][INDEX], '', '', ''] for contact in filtered_contacts]
+        first_row = reduce(lambda x, y: x + y, first_row)
+        second_row = ['Index', 'Start Time', 'End Time', ''] * len(filtered_contacts)
+
+        max_hours = max([len(filtered_contacts[contact]) for contact in filtered_contacts])
+
+        print(filtered_contacts)
+
+        rows = []
+        for i in range(max_hours):
+            rows.append([''] * len(filtered_contacts) * 4)
+
+        for i, contact in enumerate(filtered_contacts):
+            for j, hours in enumerate(filtered_contacts[contact]):
+                rows[j][i * 4] = j + 1
+                rows[j][i * 4 + 1] = hours[0]
+
+                if hours[1] == STILL_ONLINE:
+                    hours[1] = get_current_date_time()
+
+                rows[j][i * 4 + 2] = hours[1]
+
+        rows = [first_row, second_row] + rows
+
+        with open(os.path.join(CURRENT_PATH, CONTACTS_PATH), 'w', newline='') as f:
+            writer = csv.writer(f, delimiter=',')
+
+            for row in rows:
+                writer.writerow(row)
+
+
 ################# Test DB API #################
 
-TEST_NAMES = ["אייל", "אלון שראל", "הדבר שאני הכי אוהב בעולם", "Maya"]
-TEST_HOURS = [
-    [["10:00,15-05-2020", "15:00,15-05-2020"], ["22:00,15-05-2020",
-                                                "04:00,16-05-2020"],
-     ["06:00,16-05-2020", "07:12,16-05-2020"], ["12:12,16-05-2020",
-                                                "13:12,16-05-2020"],
-     ["23:12,17-05-2020", "02:12,18-05-2020"], ["10:12,18-05-2020",
-                                                "12:12,18-05-2020"]],
-    [],
-    [],
-    []
-]
+"""
+TEST_NAMES = ["גיא גולניק - 40", "עומר בצרי", "עידו רוזבל", "אריאל שניץ - 40"]
+TEST_HOURS = [[['21:21,30-05-2020', '21:22,30-05-2020'], ['21:25,30-05-2020', '21:27,30-05-2020'], ['21:30,30-05-2020', '21:35,30-05-2020'], ['21:36,30-05-2020', '21:43,30-05-2020'], ['21:46,30-05-2020', '21:50,30-05-2020'], ['21:57,30-05-2020', '21:57,30-05-2020'], ['22:05,30-05-2020', '22:06,30-05-2020']],
+              [['21:00,30-05-2020', '21:00,30-05-2020'],['21:34,30-05-2020', '21:35,30-05-2020']],
+              [['17:12,30-05-2020', '17:15,30-05-2020'],
+               ['17:31,30-05-2020', '17:34,30-05-2020'],
+               ['19:11,30-05-2020', '19:12,30-05-2020'],
+               ['19:40,30-05-2020', '19:43,30-05-2020'],
+               ['19:45,30-05-2020', '19:47,30-05-2020'],
+               ['19:51,30-05-2020', '19:52,30-05-2020'],
+               ['20:03,30-05-2020', '20:04,30-05-2020'],
+               ['20:09,30-05-2020', '20:10,30-05-2020'],
+               ['20:15,30-05-2020', '20:22,30-05-2020'],
+               ['20:38,30-05-2020', '20:38,30-05-2020'],
+               ['21:08,30-05-2020', '21:08,30-05-2020'],
+               ['21:39,30-05-2020', '21:41,30-05-2020'],
+               ['22:01,30-05-2020', '22:02,30-05-2020'],
+               ['22:04,30-05-2020', '22:05,30-05-2020'],
+               ['22:08,30-05-2020', '22:09,30-05-2020'],
+               ['22:16,30-05-2020', '22:17,30-05-2020'],
+               ['22:22,30-05-2020', '22:25,30-05-2020']],
+              [['17:12,30-05-2020', '17:12,30-05-2020'], ['17:13,30-05-2020', '17:15,30-05-2020'], ['17:29,30-05-2020', '17:32,30-05-2020'], ['17:33,30-05-2020', '17:36,30-05-2020'], ['17:39,30-05-2020', '17:42,30-05-2020'], ['17:44,30-05-2020', '17:45,30-05-2020'], ['17:57,30-05-2020', '17:59,30-05-2020'], ['18:02,30-05-2020', '18:02,30-05-2020'], ['18:37,30-05-2020', '18:40,30-05-2020'], ['18:42,30-05-2020', '18:42,30-05-2020'], ['18:43,30-05-2020', '18:46,30-05-2020'], ['20:10,30-05-2020', '20:10,30-05-2020'], ['20:23,30-05-2020', '20:25,30-05-2020'], ['20:26,30-05-2020', '20:33,30-05-2020'], ['20:35,30-05-2020', '20:38,30-05-2020'], ['20:39,30-05-2020', '20:41,30-05-2020'], ['20:42,30-05-2020', '20:43,30-05-2020'], ['20:44,30-05-2020', '20:44,30-05-2020'], ['20:45,30-05-2020', '20:47,30-05-2020'], ['20:48,30-05-2020', '20:48,30-05-2020'], ['20:49,30-05-2020', '20:50,30-05-2020'], ['20:51,30-05-2020', '20:52,30-05-2020'], ['20:53,30-05-2020', '21:01,30-05-2020'], ['21:03,30-05-2020', '21:03,30-05-2020'], ['21:08,30-05-2020', '21:12,30-05-2020'], ['21:13,30-05-2020', '21:21,30-05-2020'], ['21:22,30-05-2020', '21:24,30-05-2020'], ['21:25,30-05-2020', '21:26,30-05-2020'], ['21:27,30-05-2020', '21:31,30-05-2020'], ['21:32,30-05-2020', '21:32,30-05-2020'], ['21:33,30-05-2020', '21:33,30-05-2020'], ['21:34,30-05-2020', '21:34,30-05-2020'], ['21:35,30-05-2020', '21:36,30-05-2020'], ['21:45,30-05-2020', '21:46,30-05-2020'], ['21:48,30-05-2020', '21:49,30-05-2020'], ['21:50,30-05-2020', '21:52,30-05-2020'], ['21:54,30-05-2020', '21:54,30-05-2020'], ['22:10,30-05-2020', '22:10,30-05-2020'], ['22:19,30-05-2020', '22:21,30-05-2020'], ['22:26,30-05-2020', '22:27,30-05-2020']]
+              ]
+"""
+
+TEST_NAMES = ["איתי הראל"]
+TEST_HOURS = [[]]
 
 if __name__ == '__main__':
-    init_db(TEST_NAMES, TEST_HOURS)
-
-    # Interesting Functions
-    # online now, not online now, last seen update, set image
-
-    online_now("Eyal")
-    not_online_now("Eyal")
-    online_now("Eyal")
-    online_now("Eyal")
-    not_online_now("Eyal")
-    not_online_now("Eyal")
-    # time.sleep(120)
-    not_online_now("Eyal")
-    online_now("Eyal")
-    online_now("Eyal")
-    not_online_now("Eyal")
-    online_now("Eyal")
-
-    lastseen_update("Eyal", "10:12,09-07-2030")
-
+    # init_db(TEST_NAMES, TEST_HOURS)
+    #
+    # online_now("Eyal")
+    # not_online_now("Eyal")
+    # online_now("Eyal")
+    # online_now("Eyal")
+    # not_online_now("Eyal")
+    # not_online_now("Eyal")
+    # # time.sleep(120)
+    # not_online_now("Eyal")
+    # online_now("Eyal")
+    # online_now("Eyal")
+    # not_online_now("Eyal")
+    # online_now("Eyal")
+    #
+    # lastseen_update("Eyal", "10:12,09-07-2030")
+    #
     db = read_pkl(PKL_FILE)
 
     print_db(db)
+    #
+    # print(lastseen("Eyal"))
+    # print(get_total_activity_hours("Eyal"))
+    # print(get_activity_hours("Eyal"))
+    # print(get_image("Eyal"))
+    #
+    # print(get_contact_by_activity_hours([["14:00,15-05-2020", "23:00,15-05-2020"]]))
+    # print(get_contact_by_activity_hours([["16:00,15-05-2020", "21:00,15-05-2020"]]))
+    # print(get_complement_activity_hours("Eyal", ["14:00,15-05-2020", "05:23,16-05-2020"]))
+    #
+    # print(get_sleeping_hours("Eyal", [15, 5, 2020], [18, 5, 2020]))
+    #
+    # print("==============")
+    #
+    # print(get_contact_start_together(10))
+    # print(get_contact_end_together(10))
+    # print(get_mutual_intersection_on_day("Eyal", "Nadav", "17-05-2020"))
+    # print(get_mutual_intersection_on_day("Eyal", "Nadav", "18-05-2020"))
+    #
+    # save_activity_hours("אריאל שניץ - 40")
+    save_contacts_by_activity_hours([["18:00,30-05-2020", "19:00,30-05-2020"]])
 
-    print(lastseen("Eyal"))
-    print(get_total_activity_hours("Eyal"))
-    print(get_activity_hours("Eyal"))
-    print(get_image("Eyal"))
-
-    print(get_contact_by_activity_hours([["14:00,15-05-2020", "23:00,15-05-2020"]]))
-    print(get_contact_by_activity_hours([["16:00,15-05-2020", "21:00,15-05-2020"]]))
-    print(get_complement_activity_hours("Eyal", ["14:00,15-05-2020", "05:23,16-05-2020"]))
-
-    print(get_sleeping_hours("Eyal", [15, 5, 2020], [18, 5, 2020]))

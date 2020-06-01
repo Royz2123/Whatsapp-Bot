@@ -26,6 +26,7 @@ MONTH_TO_DAY_CONVERTER = {
 
 STILL_ONLINE = "Still Online"
 
+
 ################ Utility Functions ################
 
 def get_hour_from_format(hour):
@@ -92,6 +93,7 @@ def write_pkl(data, file_name):
 def get_current_date_time():
     current_date_time = datetime.now()
     return current_date_time.strftime(DATE_FORMAT)
+
 
 def fix_hourdates(hourdate1, hourdate2):
     new_hourdate1 = hourdate1
@@ -202,6 +204,7 @@ def min_hour(hour1, hour2):
         else:
             return hour1
 
+
 def distance_in_hourdates(hourdate1, hourdate2):
     hourdate1, hourdate2 = fix_hourdates(hourdate1, hourdate2)
 
@@ -225,11 +228,39 @@ def distance_in_hours(hour1, hour2):
     minute_diff = (hour1[1] - hour2[1]) / 60
     return hour_diff + minute_diff
 
+
 def day_to_hours(active_hours):
     active_hours[-1][-1], _ = fix_hourdates(active_hours[-1][-1], active_hours[-1][-1])
 
     return [[[int(t) for t in hour.split(",")[0].split(":")] for hour in hours] for hours in
             active_hours]
+
+
+def get_yesterday(hourdate):
+    day, month, year = hourdate.split(",")[-1].split("-")
+    hour, minute = hourdate.split(",")[0].split(":")
+
+    if int(day) > 1:
+        return DATE_FORMAT_FOR_FORMAT.format(hour, minute, int(day) - 1, month, year)
+    elif int(month) > 1:
+        return DATE_FORMAT_FOR_FORMAT.format(hour, minute, MONTH_TO_DAY_CONVERTER[month - 1],
+                                             int(month) - 1, year)
+    else:
+        return DATE_FORMAT_FOR_FORMAT.format(hour, minute, MONTH_TO_DAY_CONVERTER[12], "12",
+                                             int(year) - 1)
+
+
+def get_weekday(hourdate):
+    date = datetime.strptime(hourdate, DATE_FORMAT)
+    day = date.weekday()
+
+    return (day + 1) % 7 + 1
+
+
+def weekend(hourdate):
+    if get_weekday(hourdate) >= 6:
+        return True
+    return False
 
 
 def print_db(db):

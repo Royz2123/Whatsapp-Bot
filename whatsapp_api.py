@@ -21,7 +21,7 @@ class WhatsappClient():
     # TEST_CONTACT = "אסף תלפיות"
     # TEST_CONTACT = "אסף היי ניסיון"
 
-    def __init__(self, minimize=False, prompt=False):
+    def __init__(self, minimize=False, prompt=False, initialize=True):
         options = webdriver.ChromeOptions()
 
         if not minimize:
@@ -44,8 +44,8 @@ class WhatsappClient():
             print("Logged in")
         else:
             time.sleep(20)
-
-        DB_API.init_db(DB_API.TEST_NAMES, DB_API.TEST_HOURS)
+        if initialize:
+            DB_API.init_db(DB_API.TEST_NAMES, DB_API.TEST_HOURS)
 
     def close_conn(self):
         self._driver.quit()
@@ -54,9 +54,10 @@ class WhatsappClient():
         try:
             for contact_name in user_lst:
                 self.get_contact_time(contact_name)
-                DB_API.set_image(contact_name, self.get_contact_image(contact_name))
+                DB_API.set_image(contact_name, self.get_contact_image(contact_name,True))
         except Exception as e:
             print(f"Scan failed, Error: {e}")
+            raise e
 
 
     def open_contact(self, contact=TEST_CONTACT):
@@ -76,7 +77,7 @@ class WhatsappClient():
                 input_box_search.clear()
                 input_box_search.send_keys(contact_name)
 
-                time.sleep(1)
+                time.sleep(0.5)
 
                 # inp_xpath_contact = "//div[@class='_3j7s9']"
                 selected_contact = self._driver.find_element_by_xpath(
@@ -106,13 +107,20 @@ class WhatsappClient():
         input_box.send_keys(message + Keys.ENTER)
         time.sleep(1)
 
-    def get_contact_image(self, contact_name):
-        self.open_contact(contact_name)
+    def get_contact_image(self, contact_name, opened=False): # TODO - opened
+        if not opened:
+            self.open_contact(contact_name)
 
-        image_xpath = "//img[@class='Qgzj8 gqwaM _3FXB1']"
-        image_url = self._driver.find_elements_by_xpath(image_xpath)[-1].get_attribute("src")
-
-        print(image_url)
+        # TODO - image_xpath
+        image_xpath = "//div[@class='_1-iDe Wu52Z']//header[@class='_2y17h']//img[@class='Qgzj8 gqwaM _3FXB1']"
+        image_url= ""
+        try:
+            image_url = self._driver.find_elements_by_xpath(image_xpath)[-1].get_attribute("src")
+            print(image_url)
+        except Exception as e: # TODO - default user
+            print ("#############################")
+            print(e)
+            print("#############################")
         return image_url
 
     def get_contact_time(self, contact_name):
@@ -122,11 +130,11 @@ class WhatsappClient():
             header_xpath = "//span[@class='O90ur _3FXB1']"
 
             while True:
-                time.sleep(1)
+                time.sleep(0.5)
                 header_text = self._driver.find_element_by_xpath(header_xpath).text
 
                 if header_text == "click here for contact info":
-                    time.sleep(1)
+                    time.sleep(0.5) # TODO - less sleep
                 else:
                     break
 
