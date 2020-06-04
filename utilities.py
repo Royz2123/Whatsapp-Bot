@@ -1,5 +1,5 @@
 from threading import Lock
-from datetime import datetime
+from datetime import datetime, timedelta
 import pickle
 
 mutex = Lock()
@@ -8,6 +8,17 @@ mutex = Lock()
 
 DATE_FORMAT = "%H:%M,%d-%m-%Y"
 DATE_FORMAT_FOR_FORMAT = "{}:{},{}-{}-{}"
+
+PARTS_ERROR = "There is not the right amount of parts, should be \"hour,date\""
+HOUR_PARTS_ERROR = "There is not the right amount of parts in the hour section, should be \"hour:" \
+                   "minute\""
+HOUR_ERROR = "The hour should be between 00 and 23"
+MINUTE_ERROR = "The minutes should be between 00 and 59"
+DATE_PARTS_ERROR = "There is not the right amount of parts in the date section, should be \"day-" \
+                   "month-year\""
+DAY_ERROR = "The hour should be between 00 and 23"
+MONTH_ERROR = "Month should be between 01 and 12"
+TYPE_ERROR = "All the parts of the hour and date should be integers"
 
 MONTH_TO_DAY_CONVERTER = {
     1: 31,
@@ -229,13 +240,6 @@ def distance_in_hours(hour1, hour2):
     return hour_diff + minute_diff
 
 
-def day_to_hours(active_hours):
-    active_hours[-1][-1], _ = fix_hourdates(active_hours[-1][-1], active_hours[-1][-1])
-
-    return [[[int(t) for t in hour.split(",")[0].split(":")] for hour in hours] for hours in
-            active_hours]
-
-
 def get_yesterday(hourdate):
     day, month, year = hourdate.split(",")[-1].split("-")
     hour, minute = hourdate.split(",")[0].split(":")
@@ -261,6 +265,11 @@ def weekend(hourdate):
     if get_weekday(hourdate) >= 6:
         return True
     return False
+
+
+def add_x(hourdate, x):
+    date = datetime.strptime(hourdate, DATE_FORMAT)
+    return (date + timedelta(minutes=x)).strftime(DATE_FORMAT)
 
 
 def print_db(db):

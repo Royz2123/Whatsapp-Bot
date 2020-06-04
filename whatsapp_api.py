@@ -44,6 +44,7 @@ class WhatsappClient():
             print("Logged in")
         else:
             time.sleep(20)
+            input("ready?")
         if initialize:
             DB_API.init_db(DB_API.TEST_NAMES, DB_API.TEST_HOURS)
 
