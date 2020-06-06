@@ -99,9 +99,12 @@ def online_now(contact_name):
                 db[contact_name][ACTIVE_HOURS].append(
                     [current_date_time_str, STILL_ONLINE])
 
-            while abs(distance_in_hourdates(current_date_time_str, db[contact_name][
-                ACTIVE_HOURS][0][-1])) > abs(distance_in_hourdates("00:00,1-1-0", "00:00,15-1-0")):
-                db[contact_name][ACTIVE_HOURS] = db[contact_name][ACTIVE_HOURS][1:]
+            while abs(distance_in_hourdates(current_date_time_str,
+                                            db[contact_name][
+                                                ACTIVE_HOURS][0][-1])) > abs(
+                distance_in_hourdates("00:00,1-1-0", "00:00,15-1-0")):
+                db[contact_name][ACTIVE_HOURS] = db[contact_name][
+                                                     ACTIVE_HOURS][1:]
 
             # Update Online Status
             db[contact_name][ONLINE] = True
@@ -136,9 +139,12 @@ def not_online_now(contact_name):
             # Update Online Status
             db[contact_name][ONLINE] = False
 
-            while abs(distance_in_hourdates(current_date_time_str, db[contact_name][
-                ACTIVE_HOURS][0][-1])) > abs(distance_in_hourdates("00:00,1-1-0", "00:00,15-1-0")):
-                db[contact_name][ACTIVE_HOURS] = db[contact_name][ACTIVE_HOURS][1:]
+            while abs(distance_in_hourdates(current_date_time_str,
+                                            db[contact_name][
+                                                ACTIVE_HOURS][0][-1])) > abs(
+                distance_in_hourdates("00:00,1-1-0", "00:00,15-1-0")):
+                db[contact_name][ACTIVE_HOURS] = db[contact_name][
+                                                     ACTIVE_HOURS][1:]
 
     write_pkl(db, PKL_FILE)
 
@@ -183,7 +189,8 @@ def lastseen_update(contact_name, last_seen):
         last_seen_hours = last_seen.split(" ")[-1]
 
         if last_seen_date[0] == TODAY_LAST:
-            last_seen_update = last_seen_hours + "," + current_date.split(",")[-1]
+            last_seen_update = last_seen_hours + "," + current_date.split(",")[
+                -1]
         elif last_seen_date[0] == YESTERDAT_LAST:
             yesterday = get_yesterday(current_date)
             last_seen_update = last_seen_hours + "," + yesterday.split(",")[-1]
@@ -241,10 +248,14 @@ def get_blocking(contact_name):
 
     dists = []
     for i in range(len(activity_hours) - 1):
-        dists.append(abs(distance_in_hourdates(activity_hours[i + 1][0], activity_hours[i][-1])))
-
-    max_wait = max(dists)
-    time_since_last = abs(distance_in_hourdates(get_current_date_time(), activity_hours[-1][-1]))
+        dists.append(abs(distance_in_hourdates(activity_hours[i + 1][0],
+                                               activity_hours[i][-1])))
+    if dists:
+        max_wait = max(dists)
+    else:
+        max_wait = 0
+    time_since_last = abs(
+        distance_in_hourdates(get_current_date_time(), activity_hours[-1][-1]))
 
     if time_since_last > max(WAIT * max_wait, THRESHOLD_BLOCK):
         return True
@@ -284,16 +295,19 @@ def get_activity_hours(contact_name, minutes):
         current_date_time_str = get_current_date_time()
 
         for i, hours in enumerate(act_hours):
-            if abs(distance_in_hourdates(current_date_time_str, hours[-1])) < abs(
+            if abs(distance_in_hourdates(current_date_time_str,
+                                         hours[-1])) < abs(
                     distance_in_hourdates("00:00,1-1-0", "00:00,2-1-0")):
                 act_hours = act_hours[i:]
                 break
         else:
             start_time = add_x(current_date_time_str, -24 * 60)
             steps = int(24 * 60 / minutes)
-            return [[add_x(start_time, minutes * i).split(",")[0], 0] for i in range(steps)]
+            return [[add_x(start_time, minutes * i).split(",")[0], 0] for i in
+                    range(steps)]
 
-        if abs(distance_in_hourdates(current_date_time_str, act_hours[0][0])) > abs(
+        if abs(distance_in_hourdates(current_date_time_str,
+                                     act_hours[0][0])) > abs(
                 distance_in_hourdates("00:00,1-1-0", "00:00,2-1-0")):
             act_hours[0][0] = add_x(current_date_time_str, -24 * 60)
 
@@ -301,7 +315,7 @@ def get_activity_hours(contact_name, minutes):
 
         start_hour = add_x(current_date_time_str, -24 * 60)
         current_hour = start_hour
-        while (distance_in_hourdates(act_hours[-1][-1], current_hour) > 0):
+        while (distance_in_hourdates(current_date_time_str, current_hour) > 0):
             next_time = add_x(current_hour, minutes)
             start_index = 0
             finish_index = 0
@@ -313,14 +327,19 @@ def get_activity_hours(contact_name, minutes):
 
             relevant_hours = deepcopy(act_hours[start_index:finish_index + 1])
             if relevant_hours:
-                if distance_in_hourdates(relevant_hours[0][0], current_hour) < 0:
+                if distance_in_hourdates(relevant_hours[0][0],
+                                         current_hour) < 0:
                     relevant_hours[0][0] = current_hour
-                if distance_in_hourdates(relevant_hours[-1][-1], next_time) > 0:
+                if distance_in_hourdates(relevant_hours[-1][-1],
+                                         next_time) > 0:
                     relevant_hours[-1][-1] = next_time
-                if distance_in_hourdates(relevant_hours[-1][-1], relevant_hours[0][0]) < 0:
+                if distance_in_hourdates(relevant_hours[-1][-1],
+                                         relevant_hours[0][0]) < 0:
                     relevant_hours = []
 
-            sum_time = sum(map(lambda x: abs(distance_in_hourdates(x[0], x[1])), relevant_hours))
+            sum_time = sum(
+                map(lambda x: abs(distance_in_hourdates(x[0], x[1])),
+                    relevant_hours))
             activity.append([current_hour.split(",")[0], round(sum_time * 60)])
 
             current_hour = next_time
@@ -390,9 +409,11 @@ def get_contacts_by_activity_hours(activity_hours):
 
                 for hourdate1 in act_hours:
                     for hourdate2 in activity_hours:
-                        mutual_beginning = max_hour_date(hourdate1[0], hourdate2[0])
+                        mutual_beginning = max_hour_date(hourdate1[0],
+                                                         hourdate2[0])
                         mutual_end = min_hour_date(hourdate1[1], hourdate2[1])
-                        if mutual_beginning == min_hour_date(mutual_beginning, mutual_end):
+                        if mutual_beginning == min_hour_date(mutual_beginning,
+                                                             mutual_end):
                             ranges.append([mutual_beginning, mutual_end])
 
                 if ranges:
@@ -444,10 +465,12 @@ def get_sleeping_hours(contact, start_date, end_date):
 
                 hour_range = [start_hour, end_hour]
 
-                potential_sleep = get_complement_activity_hours(contact, hour_range)
+                potential_sleep = get_complement_activity_hours(contact,
+                                                                hour_range)
 
                 sleeping_hours.append(
-                    max(potential_sleep, key=lambda x: distance_in_hourdates(x[1], x[0])))
+                    max(potential_sleep,
+                        key=lambda x: distance_in_hourdates(x[1], x[0])))
                 day += 1
 
             day = 1
@@ -498,7 +521,8 @@ def get_contact_start_together(epsilon):
                 start = get_start_together(contact1, contact2, epsilon)
 
                 if start and start[0] is not None:
-                    if (contact1, contact2) not in start_together and (contact2, contact1) not in \
+                    if (contact1, contact2) not in start_together and (
+                    contact2, contact1) not in \
                             start_together:
                         start_together[(contact1, contact2)] = start
 
@@ -526,7 +550,8 @@ def get_contact_end_together(epsilon):
 
 
 def get_total_activity(active_hours):
-    return sum([abs(distance_in_hourdates(hour[0], hour[1])) for hour in active_hours])
+    return sum([abs(distance_in_hourdates(hour[0], hour[1])) for hour in
+                active_hours])
 
 
 def get_total_active_time_on_day(contact_name, date):
@@ -534,7 +559,8 @@ def get_total_active_time_on_day(contact_name, date):
 
     separated_hours = separate_act_hours_by_dates(active_hours)
 
-    filtered_hours = [hour for hour in separated_hours if date in hour[0] or date in hour[1]]
+    filtered_hours = [hour for hour in separated_hours if
+                      date in hour[0] or date in hour[1]]
 
     return get_total_activity(filtered_hours) / 24
 
@@ -543,7 +569,8 @@ def get_mutual_intersection(contact1, contact2, date):
     active_hours2 = get_total_activity_hours(contact2)
 
     separated_hours2 = separate_act_hours_by_dates(active_hours2)
-    filtered_hours2 = [hour for hour in separated_hours2 if date in hour[0] or date in hour[1]]
+    filtered_hours2 = [hour for hour in separated_hours2 if
+                       date in hour[0] or date in hour[1]]
 
     intersection = get_contacts_by_activity_hours(filtered_hours2)
 
@@ -563,12 +590,14 @@ def get_mutual_intersection_on_day(contact1, contact2, date):
     active_hours2[-1] = list(fix_hourdates(*active_hours2[-1]))
 
     separated_hours1 = separate_act_hours_by_dates(active_hours1)
-    filtered_hours1 = [hour for hour in separated_hours1 if date in hour[0] or date in hour[1]]
+    filtered_hours1 = [hour for hour in separated_hours1 if
+                       date in hour[0] or date in hour[1]]
 
     total_activity1 = get_total_activity(filtered_hours1)
 
     separated_hours2 = separate_act_hours_by_dates(active_hours2)
-    filtered_hours2 = [hour for hour in separated_hours2 if date in hour[0] or date in hour[1]]
+    filtered_hours2 = [hour for hour in separated_hours2 if
+                       date in hour[0] or date in hour[1]]
 
     total_activity2 = get_total_activity(filtered_hours2)
 
@@ -585,14 +614,16 @@ def get_mutual_intersection_on_day(contact1, contact2, date):
 
 def get_repeating_times(contact_name, epsilon):
     activity_hours = get_total_activity_hours(contact_name)
-    weekday_activity_hours = list(filter(lambda x: not weekend(x[0]), activity_hours))
+    weekday_activity_hours = list(
+        filter(lambda x: not weekend(x[0]), activity_hours))
 
     if not weekday_activity_hours:
         return []
 
     day_index = 0
     for i, hour in enumerate(weekday_activity_hours):
-        if abs(distance_in_hourdates(hour[1], weekday_activity_hours[0][0])) < abs(
+        if abs(distance_in_hourdates(hour[1],
+                                     weekday_activity_hours[0][0])) < abs(
                 distance_in_hourdates("00:00,1-1-0", "00:00,2-1-0")):
             day_index = i
 
@@ -602,7 +633,8 @@ def get_repeating_times(contact_name, epsilon):
     for hour1 in first_day:
         repeating = []
         for hour2 in weekday_activity_hours:
-            if abs(distance_of_hours(hour2[0], hour1[0])) < epsilon / 60 and abs(
+            if abs(distance_of_hours(hour2[0],
+                                     hour1[0])) < epsilon / 60 and abs(
                     distance_of_hours(hour2[1], hour1[1])) < epsilon / 60:
                 repeating.append(hour2)
         repeating = set([t[0].split(",")[1] for t in repeating])
@@ -618,7 +650,8 @@ def save_activity_hours(contact_name):
     if db:
         activity_hours = get_total_activity_hours(contact_name)
 
-        with open(os.path.join(CURRENT_PATH, ACTIVITY_PATH), 'w', newline='') as f:
+        with open(os.path.join(CURRENT_PATH, ACTIVITY_PATH), 'w',
+                  newline='') as f:
             writer = csv.writer(f, delimiter=',')
 
             writer.writerow(['Index', 'Start Time', 'End Time'])
@@ -639,7 +672,8 @@ def save_contacts_by_activity_hours(activity_hours):
         elements = ['Index', 'Start Time', 'End Time']
         second_row = elements * len(filtered_contacts)
 
-        max_hours = max([len(filtered_contacts[contact]) for contact in filtered_contacts])
+        max_hours = max(
+            [len(filtered_contacts[contact]) for contact in filtered_contacts])
 
         rows = []
         for i in range(max_hours):
@@ -658,7 +692,8 @@ def save_contacts_by_activity_hours(activity_hours):
         rows = [first_row, second_row] + rows
 
         df = pd.DataFrame(rows)
-        df.to_csv(os.path.join(CURRENT_PATH, CONTACTS_PATH), encoding="UTF-8", index=False)
+        df.to_csv(os.path.join(CURRENT_PATH, CONTACTS_PATH), encoding="UTF-8",
+                  index=False)
 
 
 def save_all():
@@ -690,7 +725,8 @@ def save_all():
         }
 
         df = pd.DataFrame(data)
-        df.to_csv(os.path.join(CURRENT_PATH, ALL_DATA_PATH), encoding="UTF-8", index=False)
+        df.to_csv(os.path.join(CURRENT_PATH, ALL_DATA_PATH), encoding="UTF-8",
+                  index=False)
 
 
 def save_contacts_by_activity_hours_no_names(activity_hours):
@@ -698,12 +734,14 @@ def save_contacts_by_activity_hours_no_names(activity_hours):
 
     if db:
         filtered_contacts = get_contacts_by_activity_hours(activity_hours)
-        first_row = [[db[contact][INDEX], '', ''] for contact in filtered_contacts]
+        first_row = [[db[contact][INDEX], '', ''] for contact in
+                     filtered_contacts]
         first_row = reduce(lambda x, y: x + y, first_row)
         elements = ['Index', 'Start Time', 'End Time']
         second_row = elements * len(filtered_contacts)
 
-        max_hours = max([len(filtered_contacts[contact]) for contact in filtered_contacts])
+        max_hours = max(
+            [len(filtered_contacts[contact]) for contact in filtered_contacts])
 
         rows = []
         for i in range(max_hours):
@@ -722,7 +760,8 @@ def save_contacts_by_activity_hours_no_names(activity_hours):
         rows = [first_row, second_row] + rows
 
         df = pd.DataFrame(rows)
-        df.to_csv(os.path.join(CURRENT_PATH, CONTACTS_PATH), encoding="UTF-8", index=False)
+        df.to_csv(os.path.join(CURRENT_PATH, CONTACTS_PATH), encoding="UTF-8",
+                  index=False)
 
 
 def save_all_no_names():
@@ -751,7 +790,8 @@ def save_all_no_names():
         }
 
         df = pd.DataFrame(data)
-        df.to_csv(os.path.join(CURRENT_PATH, ALL_DATA_PATH), encoding="UTF-8", index=False)
+        df.to_csv(os.path.join(CURRENT_PATH, ALL_DATA_PATH), encoding="UTF-8",
+                  index=False)
 
 
 def get_contacts_dict():
@@ -829,11 +869,11 @@ def valid_hourdate(hourdate):
 
 ################# Test DB API #################
 
-"""
-TEST_NAMES = [['גיא גולניק - 40', 'עומר בצרי', 'עידו רוזבל', 'אריאל שניץ - 40']]
-TEST_HOURS = [[] for i in range (len(TEST_NAMES))]
-"""
 
+TEST_NAMES = ['גיא גולניק - 40', 'עומר בצרי', 'עידו רוזבל', 'אריאל שניץ - 40']
+TEST_HOURS = [[] for i in range(len(TEST_NAMES))]
+
+"""
 TEST_NAMES = ["אריאל שניץ - 40","עידו רוזבל"]
 TEST_HOURS = [
     [["12:02,02-06-2020","13:30,02-06-2020"],
@@ -842,20 +882,24 @@ TEST_HOURS = [
      ["12:02,05-06-2020", "13:30,05-06-2020"]]
     ,[]
 ]
+"""
 
 if __name__ == '__main__':
-    #init_db(TEST_NAMES, TEST_HOURS)
+    # init_db(TEST_NAMES, TEST_HOURS)
 
     db = read_pkl(PKL_FILE)
     print_db(db)
+    print (get_activity_hours("עומר בצרי",30))
 
     # print(get_blocking("אריאל שניץ - 40"))
 
     # external API
-    print(get_repeating_times("אריאל שניץ - 40",20))
-    #print(get_contacts_by_activity_hours([["17:00,30-05-2020", "19:00,30-05-2020"]]))
-    #print(get_total_activity_hours("אריאל שניץ - 40"))
+    #print(get_repeating_times("אריאל שניץ - 40", 20))
+    # print(get_contacts_by_activity_hours([["17:00,30-05-2020", "19:00,30-05-2020"]]))
+    # print(get_total_activity_hours("אריאל שניץ - 40"))
 
-    #save_activity_hours("אריאל שניץ - 40")
-    #save_contacts_by_activity_hours([["17:00,30-05-2020", "19:00,30-05-2020"]])
-    #save_all()
+    # save_activity_hours("אריאל שניץ - 40")
+    # save_contacts_by_activity_hours([["17:00,30-05-2020", "19:00,30-05-2020"]])
+    # save_all()
+
+    #print(get_contacts_by_activity_hours([["17:00,21-05-2020","18:00,24-05-2020"]]))
