@@ -20,9 +20,10 @@ SLEEP_THRESHOLD = 5
 SLEEP_START_FORMAT = "22:00,{}-{}-{}"
 SLEEP_END_FORMAT = "10:00,{}-{}-{}"
 
-CURRENT_PATH = os.getcwd()
+CURRENT_PATH = "./"
 ACTIVITY_PATH = "activity_hours.csv"
 CONTACTS_PATH = "contacts.csv"
+ALL_DATA_PATH = "all_data.csv"
 
 WAIT = 2
 THRESHOLD_BLOCK = 24
@@ -68,7 +69,7 @@ def init_db(names, active_hours):
         db[contact][LAST_SEEN] = ""
         db[contact][ACTIVE_HOURS] = active_hours[i]
         db[contact][IMAGE] = ""
-        db[contact][INDEX] = i
+        db[contact][INDEX] = i + 1
 
     write_pkl(db, PKL_FILE)
 
@@ -584,14 +585,14 @@ def get_mutual_intersection_on_day(contact1, contact2, date):
 
 def get_repeating_times(contact_name, epsilon):
     activity_hours = get_total_activity_hours(contact_name)
-    weekday_activity_hours = filter(lambda x: weekend(x[0]), activity_hours)
+    weekday_activity_hours = list(filter(lambda x: not weekend(x[0]), activity_hours))
 
     if not weekday_activity_hours:
         return []
 
     day_index = 0
     for i, hour in enumerate(weekday_activity_hours):
-        if abs(distance_in_hourdates(hour[0], weekday_activity_hours[0][0])) < abs(
+        if abs(distance_in_hourdates(hour[1], weekday_activity_hours[0][0])) < abs(
                 distance_in_hourdates("00:00,1-1-0", "00:00,2-1-0")):
             day_index = i
 
@@ -601,12 +602,12 @@ def get_repeating_times(contact_name, epsilon):
     for hour1 in first_day:
         repeating = []
         for hour2 in weekday_activity_hours:
-            if abs(distance_in_hourdates(hour2[0], hour1[0])) < epsilon / 60 and abs(
-                    distance_in_hourdates(hour2[1], hour1[1])) < epsilon / 60:
+            if abs(distance_of_hours(hour2[0], hour1[0])) < epsilon / 60 and abs(
+                    distance_of_hours(hour2[1], hour1[1])) < epsilon / 60:
                 repeating.append(hour2)
-
-        if len(repeating) > REPEAT:
-            repeating_hours.append(hour1)
+        repeating = set([t[0].split(",")[1] for t in repeating])
+        if len(repeating) >= REPEAT:
+            repeating_hours.append([t.split(",")[0] for t in hour1])
 
     return repeating_hours
 
@@ -635,28 +636,122 @@ def save_contacts_by_activity_hours(activity_hours):
         filtered_contacts = get_contacts_by_activity_hours(activity_hours)
         first_row = [[contact, '', ''] for contact in filtered_contacts]
         first_row = reduce(lambda x, y: x + y, first_row)
-        second_row = ['Index', 'Start Time', 'End Time'] * len(filtered_contacts)
+        elements = ['Index', 'Start Time', 'End Time']
+        second_row = elements * len(filtered_contacts)
 
         max_hours = max([len(filtered_contacts[contact]) for contact in filtered_contacts])
 
         rows = []
         for i in range(max_hours):
-            rows.append([''] * len(filtered_contacts) * 4)
+            rows.append([''] * len(filtered_contacts) * len(elements))
 
         for i, contact in enumerate(filtered_contacts):
             for j, hours in enumerate(filtered_contacts[contact]):
-                rows[j][i * 4] = j + 1
-                rows[j][i * 4 + 1] = hours[0]
+                rows[j][i * len(elements)] = j + 1
+                rows[j][i * len(elements) + 1] = hours[0]
 
                 if hours[1] == STILL_ONLINE:
                     hours[1] = get_current_date_time()
 
-                rows[j][i * 4 + 2] = hours[1]
+                rows[j][i * len(elements) + 2] = hours[1]
 
         rows = [first_row, second_row] + rows
 
         df = pd.DataFrame(rows)
         df.to_csv(os.path.join(CURRENT_PATH, CONTACTS_PATH), encoding="UTF-8", index=False)
+
+
+def save_all():
+    db = read_pkl(PKL_FILE)
+
+    if db:
+        names = []
+        last_seen = []
+        active_hours = []
+        image = []
+        index = []
+        online = []
+
+        for contact in db:
+            names.append(contact)
+            last_seen.append(db[contact][LAST_SEEN])
+            active_hours.append(db[contact][ACTIVE_HOURS])
+            image.append(db[contact][IMAGE])
+            index.append(db[contact][INDEX])
+            online.append(db[contact][ONLINE])
+
+        data = {
+            'Name': names,
+            'Index': index,
+            'Online': online,
+            'Last Seen': last_seen,
+            'Activity Hours': active_hours,
+            'Image': image,
+        }
+
+        df = pd.DataFrame(data)
+        df.to_csv(os.path.join(CURRENT_PATH, ALL_DATA_PATH), encoding="UTF-8", index=False)
+
+
+def save_contacts_by_activity_hours_no_names(activity_hours):
+    db = read_pkl(PKL_FILE)
+
+    if db:
+        filtered_contacts = get_contacts_by_activity_hours(activity_hours)
+        first_row = [[db[contact][INDEX], '', ''] for contact in filtered_contacts]
+        first_row = reduce(lambda x, y: x + y, first_row)
+        elements = ['Index', 'Start Time', 'End Time']
+        second_row = elements * len(filtered_contacts)
+
+        max_hours = max([len(filtered_contacts[contact]) for contact in filtered_contacts])
+
+        rows = []
+        for i in range(max_hours):
+            rows.append([''] * len(filtered_contacts) * len(elements))
+
+        for i, contact in enumerate(filtered_contacts):
+            for j, hours in enumerate(filtered_contacts[contact]):
+                rows[j][i * len(elements)] = j + 1
+                rows[j][i * len(elements) + 1] = hours[0]
+
+                if hours[1] == STILL_ONLINE:
+                    hours[1] = get_current_date_time()
+
+                rows[j][i * len(elements) + 2] = hours[1]
+
+        rows = [first_row, second_row] + rows
+
+        df = pd.DataFrame(rows)
+        df.to_csv(os.path.join(CURRENT_PATH, CONTACTS_PATH), encoding="UTF-8", index=False)
+
+
+def save_all_no_names():
+    db = read_pkl(PKL_FILE)
+
+    if db:
+        last_seen = []
+        active_hours = []
+        image = []
+        index = []
+        online = []
+
+        for contact in db:
+            last_seen.append(db[contact][LAST_SEEN])
+            active_hours.append(db[contact][ACTIVE_HOURS])
+            image.append(db[contact][IMAGE])
+            index.append(db[contact][INDEX])
+            online.append(db[contact][ONLINE])
+
+        data = {
+            'Index': index,
+            'Online': online,
+            'Last Seen': last_seen,
+            'Activity Hours': active_hours,
+            'Image': image,
+        }
+
+        df = pd.DataFrame(data)
+        df.to_csv(os.path.join(CURRENT_PATH, ALL_DATA_PATH), encoding="UTF-8", index=False)
 
 
 def get_contacts_dict():
@@ -734,69 +829,33 @@ def valid_hourdate(hourdate):
 
 ################# Test DB API #################
 
+"""
+TEST_NAMES = [['גיא גולניק - 40', 'עומר בצרי', 'עידו רוזבל', 'אריאל שניץ - 40']]
+TEST_HOURS = [[] for i in range (len(TEST_NAMES))]
+"""
 
-TEST_NAMES = ["אייל כץ - 40", "נדב כרמל - 40", "אלון שראל - 40", "סבתא שולה המלכה", "אלון בויאנג'ו שלום"]
+TEST_NAMES = ["אריאל שניץ - 40","עידו רוזבל"]
 TEST_HOURS = [
-    [["10:00,02-06-2020", "15:00,02-06-2020"], ["16:00,02-06-2020",
-                                                "17:00,02-06-2020"],
-     ["22:00,02-06-2020", "04:00,03-06-2020"],
-     ["06:00,03-06-2020", "07:12,03-06-2020"], ["12:12,03-06-2020",
-                                                "13:12,03-06-2020"]],
-    [["11:00,15-05-2020", "15:00,15-05-2020"], ["22:00,15-05-2020",
-                                                "23:00,15-05-2020"],
-     ["06:00,16-05-2020", "07:12,16-05-2020"], ["13:00,16-05-2020",
-                                                "14:00,16-05-2020"],
-     ["23:12,17-05-2020", "01:00,18-05-2020"], ["10:12,18-05-2020",
-                                                "11:00,18-05-2020"]],
-    [],
-    [],
-    []
+    [["12:02,02-06-2020","13:30,02-06-2020"],
+     ["11:57,03-06-2020", "13:11,03-06-2020"],
+     ["12:10,04-06-2020", "13:20,04-06-2020"],
+     ["12:02,05-06-2020", "13:30,05-06-2020"]]
+    ,[]
 ]
 
 if __name__ == '__main__':
-    # init_db(names, active_hours)
-    #
-    # online_now("Eyal")
-    # not_online_now("Eyal")
-    # online_now("Eyal")
-    # online_now("Eyal")
-    # not_online_now("Eyal")
-    # not_online_now("Eyal")
-    # # time.sleep(120)
-    # not_online_now("Eyal")
-    # online_now("Eyal")
-    # online_now("Eyal")
-    # not_online_now("Eyal")
-    # online_now("Eyal")
-    #
-    # lastseen_update("Eyal", "10:12,09-07-2030")
-    #
+    #init_db(TEST_NAMES, TEST_HOURS)
+
     db = read_pkl(PKL_FILE)
-
     print_db(db)
-    #
-    # print(lastseen("Eyal"))
-    #print(get_total_activity_hours("אייל כץ - 40"))
-    #print(get_activity_hours("אייל כץ - 40", 10))
-    # print(get_image("Eyal"))
-    #
-    # print(get_contact_by_activity_hours([["14:00,15-05-2020", "23:00,15-05-2020"]]))
-    # print(get_contact_by_activity_hours([["16:00,15-05-2020", "21:00,15-05-2020"]]))
-    # print(get_complement_activity_hours("Eyal", ["14:00,15-05-2020", "05:23,16-05-2020"]))
-    #
-    # print(get_sleeping_hours("Eyal", [15, 5, 2020], [18, 5, 2020]))
-    #
-    # print("==============")
-    #
-    # print(get_contact_start_together(10))
-    # print(get_contact_end_together(10))
-    # print(get_mutual_intersection_on_day("Eyal", "Nadav", "17-05-2020"))
-    # print(get_mutual_intersection_on_day("Eyal", "Nadav", "18-05-2020"))
-    #
-    # save_activity_hours("Eyal")
-    # save_contacts_by_activity_hours([["14:00,15-05-2020", "23:00,15-05-2020"]])
 
-    #print(get_weekday("10:10,30-05-2020"))
-    #print(add_x("10:10,30-05-2020", -10))
+    # print(get_blocking("אריאל שניץ - 40"))
 
-    print (get_activity_hours("תמוז סדן",10))
+    # external API
+    print(get_repeating_times("אריאל שניץ - 40",20))
+    #print(get_contacts_by_activity_hours([["17:00,30-05-2020", "19:00,30-05-2020"]]))
+    #print(get_total_activity_hours("אריאל שניץ - 40"))
+
+    #save_activity_hours("אריאל שניץ - 40")
+    #save_contacts_by_activity_hours([["17:00,30-05-2020", "19:00,30-05-2020"]])
+    #save_all()

@@ -17,7 +17,7 @@ MINUTE_ERROR = "The minutes should be between 00 and 59"
 DATE_PARTS_ERROR = "There is not the right amount of parts in the date section, should be \"day-" \
                    "month-year\""
 DAY_ERROR = "The hour should be between 00 and 23"
-MONTH_ERROR = "Month should be between 01 and 12"
+MONTH_ERROR = "The minutes should be between 00 and 59"
 TYPE_ERROR = "All the parts of the hour and date should be integers"
 
 MONTH_TO_DAY_CONVERTER = {
@@ -232,6 +232,16 @@ def distance_in_days(date1, date2):
     month_diff = (date1[1] - date2[1]) * 30 * 24
     year_diff = (date1[2] - date2[2]) * 365 * 24
     return day_diff + month_diff + year_diff
+
+
+def distance_of_hours(hourdate1, hourdate2):
+    hour1, _ = hourdate1.split(",")
+    hour2, _ = hourdate2.split(",")
+
+    hours1 = [int(t) for t in hour1.split(":")]
+    hours2 = [int(t) for t in hour2.split(":")]
+
+    return distance_in_hours(hours1, hours2)
 
 
 def distance_in_hours(hour1, hour2):

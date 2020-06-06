@@ -157,7 +157,7 @@ class WhatsappClient:
         self.open_contact(contact_name)
 
         try:
-            header_xpath = "//span[@class='O90ur _3FXB1']"
+            header_xpath = "//span[@class='_3-cMa _3Whw5']"
 
             while True:
                 time.sleep(0.5)
