@@ -35,6 +35,7 @@ class WhatsappClient:
             self._driver.set_window_position(-2000, 0)
         else:
             self._driver.set_window_position(0, 0)
+        self._driver.set_window_size(1024, 768)
 
     def initialize(self, initialize=True):
         options = webdriver.ChromeOptions()
