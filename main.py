@@ -54,7 +54,7 @@ def main():
     while not whats_client.init_scan:
         time.sleep(1)
 
-    whats_client.initialize(initialize=True)
+    whats_client.initialize(initialize=False)
 
     while not whats_client.kill_scan:
         print("Starting contacts scan")

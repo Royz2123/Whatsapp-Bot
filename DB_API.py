@@ -7,7 +7,7 @@ from copy import deepcopy
 
 ################ API Constants ################
 
-PKL_FILE = "./Database.pkl"
+PKL_FILE = "./Database4.pkl"
 
 ONLINE = "Online"
 ACTIVE_HOURS = "Active Hours"
@@ -17,8 +17,8 @@ STILL_ONLINE = "Still Online"
 INDEX = "Index"
 
 SLEEP_THRESHOLD = 5
-SLEEP_START_FORMAT = "22:00,{}-{}-{}"
-SLEEP_END_FORMAT = "10:00,{}-{}-{}"
+SLEEP_START_FORMAT = "22:00,{0:0>2}-{0:0>2}-{0:0>2}"
+SLEEP_END_FORMAT = "10:00,{0:0>2}-{0:0>2}-{0:0>2}"
 
 CURRENT_PATH = "./"
 ACTIVITY_PATH = "activity_hours.csv"
@@ -297,7 +297,7 @@ def get_activity_hours(contact_name, minutes):
         for i, hours in enumerate(act_hours):
             if abs(distance_in_hourdates(current_date_time_str,
                                          hours[-1])) < abs(
-                    distance_in_hourdates("00:00,1-1-0", "00:00,2-1-0")):
+                distance_in_hourdates("00:00,1-1-0", "00:00,2-1-0")):
                 act_hours = act_hours[i:]
                 break
         else:
@@ -308,7 +308,7 @@ def get_activity_hours(contact_name, minutes):
 
         if abs(distance_in_hourdates(current_date_time_str,
                                      act_hours[0][0])) > abs(
-                distance_in_hourdates("00:00,1-1-0", "00:00,2-1-0")):
+            distance_in_hourdates("00:00,1-1-0", "00:00,2-1-0")):
             act_hours[0][0] = add_x(current_date_time_str, -24 * 60)
 
         activity = []
@@ -522,7 +522,7 @@ def get_contact_start_together(epsilon):
 
                 if start and start[0] is not None:
                     if (contact1, contact2) not in start_together and (
-                    contact2, contact1) not in \
+                            contact2, contact1) not in \
                             start_together:
                         start_together[(contact1, contact2)] = start
 
@@ -624,7 +624,7 @@ def get_repeating_times(contact_name, epsilon):
     for i, hour in enumerate(weekday_activity_hours):
         if abs(distance_in_hourdates(hour[1],
                                      weekday_activity_hours[0][0])) < abs(
-                distance_in_hourdates("00:00,1-1-0", "00:00,2-1-0")):
+            distance_in_hourdates("00:00,1-1-0", "00:00,2-1-0")):
             day_index = i
 
     first_day = weekday_activity_hours[:day_index + 1]
@@ -635,7 +635,7 @@ def get_repeating_times(contact_name, epsilon):
         for hour2 in weekday_activity_hours:
             if abs(distance_of_hours(hour2[0],
                                      hour1[0])) < epsilon / 60 and abs(
-                    distance_of_hours(hour2[1], hour1[1])) < epsilon / 60:
+                distance_of_hours(hour2[1], hour1[1])) < epsilon / 60:
                 repeating.append(hour2)
         repeating = set([t[0].split(",")[1] for t in repeating])
         if len(repeating) >= REPEAT:
@@ -866,40 +866,61 @@ def valid_hourdate(hourdate):
 
     return True, None
 
+"""
+def add_new_contact(contact_name):
+    names = list(get_contacts_dict().keys())
+    hours = []
+    for name in names:
+        hs = get_total_activity_hours(name)
+        hours.append(hs)
+    names.append(contact_name)
+    hours.append([])
+    init_db(names, hours)
 
+
+def del_contact(contact_name):
+    names = list(get_contacts_dict().keys())
+    if not contact_name in names:
+        print("contact name {0} not found in db".format(contact_name))
+        return
+    names.remove(contact_name)
+    hours = []
+    for name in names:
+        hs = get_total_activity_hours(name)
+        hours.append(hs)
+    init_db(names, hours)
+"""
 ################# Test DB API #################
 
+#TEST_NAMES = ['גיא גולניק - 40', 'איתי הראל', 'תומר שראל', 'אריאל שניץ - 40']
 
 TEST_NAMES = ['גיא גולניק - 40', 'עומר בצרי', 'עידו רוזבל', 'אריאל שניץ - 40']
 TEST_HOURS = [[] for i in range(len(TEST_NAMES))]
 
+
+#TEST_NAMES = ["אריאל שניץ - 40","עידו רוזבל"]
 """
-TEST_NAMES = ["אריאל שניץ - 40","עידו רוזבל"]
 TEST_HOURS = [
-    [["12:02,02-06-2020","13:30,02-06-2020"],
-     ["11:57,03-06-2020", "13:11,03-06-2020"],
-     ["12:10,04-06-2020", "13:20,04-06-2020"],
-     ["12:02,05-06-2020", "13:30,05-06-2020"]]
+    [["08:01,02-06-2020","08:03,02-06-2020"],["08:10,02-06-2020","08:11,02-06-2020"],["12:02,02-06-2020","13:03,02-06-2020"],
+     ["07:59,03-06-2020", "08:02,03-06-2020"],["08:11,03-06-2020", "08:13,03-06-2020"],["12:03,03-06-2020", "13:04,03-06-2020"],
+     ["08:02,04-06-2020", "08:03,04-06-2020"], ["08:09,04-06-2020", "08:10,04-06-2020"],["12:04,04-06-2020", "13:03,04-06-2020"],
+     ["08:02,04-06-2020", "08:02,05-06-2020"],["08:09,05-06-2020", "08:11,05-06-2020"],["11:59,05-06-2020", "13:00,05-06-2020"]]
     ,[]
 ]
 """
 
 if __name__ == '__main__':
-    # init_db(TEST_NAMES, TEST_HOURS)
-
+    #init_db(TEST_NAMES, TEST_HOURS)
     db = read_pkl(PKL_FILE)
     print_db(db)
-    print (get_activity_hours("עומר בצרי",30))
-
-    # print(get_blocking("אריאל שניץ - 40"))
 
     # external API
-    #print(get_repeating_times("אריאל שניץ - 40", 20))
-    # print(get_contacts_by_activity_hours([["17:00,30-05-2020", "19:00,30-05-2020"]]))
+    # print(get_repeating_times("אריאל שניץ - 40", 3))
+    # print(get_contacts_by_activity_hours([["17:00,06-06-2020", "19:00,06-06-2020"]]))
     # print(get_total_activity_hours("אריאל שניץ - 40"))
 
     # save_activity_hours("אריאל שניץ - 40")
     # save_contacts_by_activity_hours([["17:00,30-05-2020", "19:00,30-05-2020"]])
     # save_all()
 
-    #print(get_contacts_by_activity_hours([["17:00,21-05-2020","18:00,24-05-2020"]]))
+    # print(get_contacts_by_activity_hours([["17:00,21-05-2020","18:00,24-05-2020"]]))

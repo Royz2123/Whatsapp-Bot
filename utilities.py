@@ -7,7 +7,7 @@ mutex = Lock()
 ################ Utility Constants ################
 
 DATE_FORMAT = "%H:%M,%d-%m-%Y"
-DATE_FORMAT_FOR_FORMAT = "{}:{},{}-{}-{}"
+DATE_FORMAT_FOR_FORMAT = "{0:0>2}:{0:0>2},{0:0>2}-{0:0>2}-{0:0>2}"
 
 PARTS_ERROR = "There is not the right amount of parts, should be \"hour,date\""
 HOUR_PARTS_ERROR = "There is not the right amount of parts in the hour section, should be \"hour:" \
@@ -251,17 +251,8 @@ def distance_in_hours(hour1, hour2):
 
 
 def get_yesterday(hourdate):
-    day, month, year = hourdate.split(",")[-1].split("-")
-    hour, minute = hourdate.split(",")[0].split(":")
+    return add_x(hourdate, -24*60)
 
-    if int(day) > 1:
-        return DATE_FORMAT_FOR_FORMAT.format(hour, minute, int(day) - 1, month, year)
-    elif int(month) > 1:
-        return DATE_FORMAT_FOR_FORMAT.format(hour, minute, MONTH_TO_DAY_CONVERTER[month - 1],
-                                             int(month) - 1, year)
-    else:
-        return DATE_FORMAT_FOR_FORMAT.format(hour, minute, MONTH_TO_DAY_CONVERTER[12], "12",
-                                             int(year) - 1)
 
 
 def get_weekday(hourdate):
